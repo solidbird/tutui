@@ -18,6 +18,7 @@
 };*/
 
 typedef enum tu_element_type {
+	TU_WINDOW,
 	TU_TEXTLABEL,
 	TU_TEXTFIELD,
 	TU_TEXTAREA,
@@ -30,7 +31,8 @@ typedef enum tu_element_type {
 typedef struct tu_element {
 	void *ref;
 	tu_element_type type;
-	struct tu_element* next;
+	size_t child_count;
+	struct tu_element* children;
 	struct tu_element* parent;	
 } tu_element;
 
@@ -45,7 +47,7 @@ typedef struct tu_window {
 	tu_position position;
 
 	wchar_t *draw_buffer;
-	tu_element *children;
+	tu_element main_element;
 } tu_window;
 
 tu_window* tu_create_window(char *title);
@@ -59,8 +61,9 @@ tu_window* tu_create_window(char *title){
 
 	if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &window->size) == -1) return NULL;
 	window->position = (tu_position){0, 0};
+	window->main_element = (tu_element){0};
 
-	size_t buffer_size = sizeof(wchar_t) * window->size.ws_row * window->size.ws_col;
+	size_t buffer_size = sizeof(wchar_t) * (window->size.ws_row * window->size.ws_col + 1);
 	window->draw_buffer = malloc(buffer_size);
 	wmemset(window->draw_buffer, L' ', buffer_size/sizeof(wchar_t));
 
@@ -93,18 +96,28 @@ static void __prep_main_window(tu_window **window){
 	}
 }
 
-void tu_run(tu_window *window){
+void tu_run(tu_window *window) {
 	ioctl(STDOUT_FILENO, TIOCGWINSZ, &window->size);
+	size_t area = window->size.ws_row * window->size.ws_col;
+
+	wchar_t *tmp = realloc(window->draw_buffer, sizeof(wchar_t) * (area + 1));
+	if (tmp == NULL) {
+		perror("realloc failed");
+		free(window->draw_buffer);
+		exit(1);
+	}
+	window->draw_buffer = tmp;
+
+	wmemset(window->draw_buffer, L' ', area);
+	window->draw_buffer[area] = L'\0';
+
 	__prep_main_window(&window);
-	
-	window->draw_buffer[window->size.ws_row * window->size.ws_col] = L'\0';
 
-	wprintf(L"\r%ls", window->draw_buffer); // Formatted output >>
+	wprintf(L"\r%ls", window->draw_buffer);
 	fflush(stdout);
-	usleep((1000 * 1000) / 60);
-
-	wmemset(window->draw_buffer, L' ', window->size.ws_row * window->size.ws_col);
+	usleep((1000 * 1000) / 60);  // 60 FPS
 }
+
 
 #endif
 #endif
