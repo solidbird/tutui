@@ -50,9 +50,19 @@ typedef struct tu_window {
 	tu_element main_element;
 } tu_window;
 
+void tu_add(tu_element *parent_element, tu_element *child_element);
 tu_window* tu_create_window(char *title);
 
 #ifdef TUTUI_IMPLEMENTATION
+
+void tu_add(tu_element *parent_element, tu_element *child_element){
+	//if(parent_element->child_count > 0){
+		parent_element->children = realloc(parent_element->children, sizeof(*child_element) * ++parent_element->child_count);
+	//} else {
+	//	parent_element->children = malloc(sizeof(*child_element) * ++parent_element->child_count);
+	//}
+	parent_element->children[parent_element->child_count] = *child_element;
+}
 
 tu_window* tu_create_window(char *title){
 	tu_window *window = malloc(sizeof(*window));
