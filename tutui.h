@@ -28,18 +28,20 @@ typedef enum tu_element_type {
 	// ...
 } tu_element_type;
 
-typedef struct tu_element {
-	void *ref;
-	tu_element_type type;
-	size_t child_count;
-	struct tu_element* children;
-	struct tu_element* parent;	
-} tu_element;
-
 typedef struct tu_position {
 	int x;
 	int y;
 } tu_position;
+
+typedef struct tu_element {
+	void *ref;
+	tu_element_type type;
+	tu_position position;
+	struct winsize size; //ws_row, ws_col
+	size_t child_count;
+	struct tu_element* children;
+	struct tu_element* parent;	
+} tu_element;
 
 typedef struct tu_window {
 	char *title;
@@ -50,10 +52,24 @@ typedef struct tu_window {
 	tu_element main_element;
 } tu_window;
 
+typedef struct tu_textlabel {
+	char *text;
+	tu_element element;
+} tu_textlabel;
+
 void tu_add(tu_element *parent_element, tu_element *child_element);
 tu_window* tu_create_window(char *title);
+tu_textlabel* tu_create_textlabel(char *text, int x, int y);
 
 #ifdef TUTUI_IMPLEMENTATION
+
+tu_textlabel* tu_create_textlabel(char *text, int x, int y){
+	tu_textlabel *tl = malloc(sizeof(*tl));
+	tl->text = text;
+	tl->element.position = (tu_position){x, y};
+
+	return tl;
+}
 
 void tu_add(tu_element *parent_element, tu_element *child_element){
 	//if(parent_element->child_count > 0){
