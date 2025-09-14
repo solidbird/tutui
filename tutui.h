@@ -49,7 +49,7 @@ typedef struct tu_element {
 	struct winsize size; //ws_row, ws_col
 
 	size_t child_count;
-	struct tu_element* children;
+	struct tu_element** children;
 	struct tu_element* parent;	
 } tu_element;
 
@@ -86,7 +86,7 @@ void tu_add(tu_element *parent_element, tu_element *child_element){
 	} else {
 		parent_element->children = malloc(sizeof(*child_element) * ++(parent_element->child_count));
 	}
-	parent_element->children[parent_element->child_count - 1] = *child_element;
+	parent_element->children[parent_element->child_count - 1] = child_element;
 }
 
 tu_window* tu_create_window(char *title){
@@ -171,10 +171,10 @@ static void __prep_main_window(tu_window **window){
 	for(int i = 0; i < (*window)->main_element.child_count; i++){
 		__element_border(
 			window,
-			(*window)->main_element.children[i].position.x,
-			(*window)->main_element.children[i].position.y,
-			(*window)->main_element.children[i].size.ws_row,
-			(*window)->main_element.children[i].size.ws_col
+			(*window)->main_element.children[i]->position.x,
+			(*window)->main_element.children[i]->position.y,
+			(*window)->main_element.children[i]->size.ws_row,
+			(*window)->main_element.children[i]->size.ws_col
 		);
 	}
 }
