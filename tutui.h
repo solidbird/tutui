@@ -17,6 +17,11 @@
 	tu_draw_textlabel,
 };*/
 
+#define FG_COLOR(R, G, B) "\x1b[38;2;" #R ";" #G ";" #B "m"
+#define BG_COLOR(R, G, B) "\x1b[48;2;" #R ";" #G ";" #B "m"
+#define END_COLOR "\x1b[0m"
+
+
 const wchar_t border[6] = {L'╔', L'═', L'╗', L'║', L'╝', L'╚'};
 
 typedef enum tu_element_type {
@@ -191,7 +196,11 @@ void tu_run(tu_window *window) {
 
 	__prep_main_window(&window);
 
-	wprintf(L"\r%ls", window->draw_buffer);
+	printf(BG_COLOR(0,200, 0));
+	printf(FG_COLOR(200,0, 0));
+	printf("\r%ls", window->draw_buffer);
+	printf(END_COLOR);
+	printf(END_COLOR);
 	fflush(stdout);
 	usleep((1000 * 1000) / 60);  // 60 FPS
 }
