@@ -133,17 +133,17 @@ static void __general_border(wchar_t *draw_buffer, int pos_x, int pos_y, int row
 			int linear_index = x + y * col;
 
 			if(x % (col-2) == 0)
-				draw_buffer[linear_index] = border[3];
+				draw_buffer[linear_index] = border[TU_BORDER_VERTICAL];
 			if(y % (row-1) == 0 && x != col-1)
-				draw_buffer[linear_index] = border[1];
+				draw_buffer[linear_index] = border[TU_BORDER_HORIZONTAL];
 			if(x == pos_x && y == pos_y)
-				draw_buffer[linear_index] = border[0];
+				draw_buffer[linear_index] = border[TU_BORDER_TOP_LEFT_CORNER];
 			if(x == pos_x && y == row-1)
-				draw_buffer[linear_index] = border[5];
+				draw_buffer[linear_index] = border[TU_BORDER_BOTTOM_LEFT_CORNER];
 			if(x == col-2 && y == row-1)
-				draw_buffer[linear_index] = border[4];
+				draw_buffer[linear_index] = border[TU_BORDER_BOTTOM_RIGT_CORNER];
 			if(x == col-2 && y == pos_y)
-				draw_buffer[linear_index] = border[2];
+				draw_buffer[linear_index] = border[TU_BORDER_TOP_RIGHT_CORNER];
 			if(x == col-1 && y != row-1) 
 				draw_buffer[linear_index] = L'\n';
 		}
@@ -190,13 +190,14 @@ void travel_child_tree(tu_window **window, tu_element *parent){
 		else
 			travel_child_tree(window, parent->children[i]);
 	}
-	__element_border(
-		window,
-		parent->position.x,
-		parent->position.y,
-		parent->size.ws_row,
-		parent->size.ws_col
-	);
+	if(&(*window)->main_element != parent)
+		__element_border(
+			window,
+			parent->position.x,
+			parent->position.y,
+			parent->size.ws_row,
+			parent->size.ws_col
+		);
 }
 
 static void __prep_main_window(tu_window **window){
