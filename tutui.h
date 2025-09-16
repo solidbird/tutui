@@ -22,6 +22,14 @@
 #define END_COLOR "\x1b[0m"
 
 
+typedef enum tu_border_index {
+	TU_BORDER_TOP_LEFT_CORNER,
+	TU_BORDER_HORIZONTAL,
+	TU_BORDER_TOP_RIGHT_CORNER,
+	TU_BORDER_VERTICAL,
+	TU_BORDER_BOTTOM_RIGT_CORNER,
+	TU_BORDER_BOTTOM_LEFT_CORNER,
+} tu_border_index;
 const wchar_t border[6] = {L'╔', L'═', L'╗', L'║', L'╝', L'╚'};
 
 typedef enum tu_element_type {
@@ -53,19 +61,24 @@ typedef struct tu_element {
 	struct tu_element* parent;	
 } tu_element;
 
+typedef struct Base {
+	tu_element element;
+} Base;
+
 typedef struct tu_window {
+	tu_element main_element;
+
 	char *title;
 	wchar_t *draw_buffer;
-	
-	tu_element main_element;
 } tu_window;
 
 typedef struct tu_textlabel {
-	char *text;
 	tu_element element;
+
+	char *text;
 } tu_textlabel;
 
-void tu_add(tu_element *parent_element, tu_element *child_element);
+void tu_add(void *parent, void *child);
 tu_window* tu_create_window(char *title);
 tu_textlabel* tu_create_textlabel(char *text, int x, int y, int width, int height);
 
@@ -76,11 +89,17 @@ tu_textlabel* tu_create_textlabel(char *text, int x, int y, int width, int heigh
 	tl->text = text;
 	tl->element.position = (tu_position){x, y};
 	tl->element.size = (struct winsize) {width, height};
+	tl->element.specifics = tl;
+	tl->element.type = TU_TEXTLABEL;
 
 	return tl;
 }
 
-void tu_add(tu_element *parent_element, tu_element *child_element){
+void tu_add(void *parent, void *child){
+	tu_element *parent_element = &((Base*)parent)->element;
+	tu_element *child_element = &((Base*)child)->element;
+	child_element->specifics = child;
+
 	if(parent_element->child_count > 0){
 		parent_element->children = realloc(parent_element->children, sizeof(*child_element) * ++(parent_element->child_count));
 	} else {
@@ -95,8 +114,10 @@ tu_window* tu_create_window(char *title){
 	strncpy(window->title, title, strlen(title));
 
 	if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &window->main_element.size) == -1) return NULL;
-	window->main_element.position = (tu_position){0, 0};
 	window->main_element = (tu_element){0};
+	window->main_element.position = (tu_position){0, 0};
+	window->main_element.specifics = window;
+	window->main_element.type = TU_WINDOW;
 
 	size_t buffer_size = sizeof(wchar_t) * (window->main_element.size.ws_row * window->main_element.size.ws_col + 1);
 	window->draw_buffer = malloc(buffer_size);
@@ -156,6 +177,28 @@ static void __element_border(tu_window **window, int pos_x, int pos_y, int row, 
 	}
 }
 
+void travel_child_tree(tu_window **window, tu_element *parent){
+	for(int i = 0; i < parent->child_count; i++){
+		if(parent->children[i]->child_count == 0)
+			__element_border(
+				window,
+				parent->children[i]->position.x,
+				parent->children[i]->position.y,
+				parent->children[i]->size.ws_row,
+				parent->children[i]->size.ws_col
+			);
+		else
+			travel_child_tree(window, parent->children[i]);
+	}
+	__element_border(
+		window,
+		parent->position.x,
+		parent->position.y,
+		parent->size.ws_row,
+		parent->size.ws_col
+	);
+}
+
 static void __prep_main_window(tu_window **window){
 	setlocale(LC_ALL, "");
 
@@ -167,16 +210,7 @@ static void __prep_main_window(tu_window **window){
 		(*window)->main_element.size.ws_col
 	);
 
-
-	for(int i = 0; i < (*window)->main_element.child_count; i++){
-		__element_border(
-			window,
-			(*window)->main_element.children[i]->position.x,
-			(*window)->main_element.children[i]->position.y,
-			(*window)->main_element.children[i]->size.ws_row,
-			(*window)->main_element.children[i]->size.ws_col
-		);
-	}
+	travel_child_tree(window, &((*window)->main_element));
 }
 
 void tu_run(tu_window *window) {
@@ -196,8 +230,8 @@ void tu_run(tu_window *window) {
 
 	__prep_main_window(&window);
 
-	printf(BG_COLOR(0,200, 0));
-	printf(FG_COLOR(200,0, 0));
+	printf(BG_COLOR(80, 80, 230));
+	printf(FG_COLOR(255, 255, 255));
 	printf("\r%ls", window->draw_buffer);
 	printf(END_COLOR);
 	printf(END_COLOR);
