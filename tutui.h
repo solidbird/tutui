@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <locale.h>
+#include <stdbool.h>
 
 /*void *draw_elements[] = {
 	tu_draw_textlabel,
@@ -151,34 +152,59 @@ static void __general_border(wchar_t *draw_buffer, int pos_x, int pos_y, int row
 	}
 }
 
-static void __element_border(tu_window **window, int pos_x, int pos_y, int row, int col){
+bool check_point_within_bounds(tu_position pos, tu_position bound_pos, struct winsize bound_size){
+	if(bound_pos.x < pos.x &&
+	bound_pos.y < pos.y &&
+	bound_size.ws_col + bound_pos.x > pos.x &&
+	bound_size.ws_row + bound_pos.y > pos.y) return true;
+
+	return false;
+}
+
+bool check_rect_within_bounds(tu_position pos, struct winsize size, tu_position bound_pos, struct winsize bound_size){
+	if(bound_pos.x < pos.x &&
+	bound_pos.y < pos.y &&
+	bound_size.ws_col + bound_pos.x > pos.x + size.ws_col &&
+	bound_size.ws_row + bound_pos.y > pos.y + size.ws_row) return true;
+
+	return false;
+}
+
+static void __element_border(tu_window **window, tu_element *parent, int pos_x, int pos_y, int row, int col){
 	int window_col = (*window)->main_element.size.ws_col;
 
 	for(int y = pos_y; y < (*window)->main_element.size.ws_row; y++){
 		for(int x = pos_x; x < (*window)->main_element.size.ws_col; x++){
 			int linear_index = x + y * window_col;
 
-			if(x == pos_x && y >= pos_y && y < pos_y + row)
-				(*window)->draw_buffer[linear_index] = border[3];
-			if(x == pos_x + col && y >= pos_y && y < pos_y + row)
-				(*window)->draw_buffer[linear_index] = border[3];
-			if(y == pos_y && x >= pos_x && x < pos_x + col)
-				(*window)->draw_buffer[linear_index] = border[1];
-			if(y == pos_y + row && x >= pos_x && x < pos_x + col)
-				(*window)->draw_buffer[linear_index] = border[1];
-			if(x == pos_x && y == pos_y)
-				(*window)->draw_buffer[linear_index] = border[0];
-			if(x == pos_x + row && y == pos_y)
-				(*window)->draw_buffer[linear_index] = border[2];
-			if(x == pos_x + row && y == pos_y + col)
-				(*window)->draw_buffer[linear_index] = border[4];
-			if(x == pos_x && y == pos_y + col)
-				(*window)->draw_buffer[linear_index] = border[5];
+
+			if(x == pos_x && y >= pos_y && y < pos_y + row){ // Draw topleft -> bottomleft
+				if(!check_point_within_bounds((tu_position){x, y}, parent->position, parent->size)) continue;
+				(*window)->draw_buffer[linear_index] = border[TU_BORDER_VERTICAL];
+			}if(x == pos_x + col && y >= pos_y && y < pos_y + row){ // topright -> bottomright
+				if(!check_point_within_bounds((tu_position){x, y}, parent->position, parent->size)) continue;
+				(*window)->draw_buffer[linear_index] = border[TU_BORDER_VERTICAL];
+			}if(y == pos_y && x >= pos_x && x < pos_x + col){ // topleft -> topright
+				if(!check_point_within_bounds((tu_position){x, y}, parent->position, parent->size)) continue;
+				(*window)->draw_buffer[linear_index] = border[TU_BORDER_HORIZONTAL];
+			}if(y == pos_y + row && x >= pos_x && x < pos_x + col){ // bottomleft -> bottomright
+				if(!check_point_within_bounds((tu_position){x, y}, parent->position, parent->size)) continue;
+				(*window)->draw_buffer[linear_index] = border[TU_BORDER_HORIZONTAL];
+			}if(x == pos_x && y == pos_y){ // topleft
+				if(!check_point_within_bounds((tu_position){x, y}, parent->position, parent->size)) continue;
+				(*window)->draw_buffer[linear_index] = border[TU_BORDER_TOP_LEFT_CORNER];
+			}if(x == pos_x + col && y == pos_y){ // topright
+				if(!check_point_within_bounds((tu_position){x, y}, parent->position, parent->size)) continue;
+				(*window)->draw_buffer[linear_index] = border[TU_BORDER_TOP_RIGHT_CORNER];
+			}if(x == pos_x + col && y == pos_y + row){ // bottomright
+				if(!check_point_within_bounds((tu_position){x, y}, parent->position, parent->size)) continue;
+				(*window)->draw_buffer[linear_index] = border[TU_BORDER_BOTTOM_RIGT_CORNER];
+			}if(x == pos_x && y == pos_y + row){ // bottomleft
+				if(!check_point_within_bounds((tu_position){x, y}, parent->position, parent->size)) continue;
+				(*window)->draw_buffer[linear_index] = border[TU_BORDER_BOTTOM_LEFT_CORNER];
+			}
 		}
 	}
-}
-
-void update_position(tu_element *node, tu_position pos){
 }
 
 void travel_child_tree(tu_window **window, tu_element *parent){
@@ -186,6 +212,7 @@ void travel_child_tree(tu_window **window, tu_element *parent){
 		if(parent->children[i]->child_count == 0)
 			__element_border(
 				window,
+				parent,
 				parent->children[i]->parent->position.x + parent->children[i]->position.x,
 				parent->children[i]->parent->position.y + parent->children[i]->position.y,
 				parent->children[i]->size.ws_row,
@@ -197,6 +224,7 @@ void travel_child_tree(tu_window **window, tu_element *parent){
 	if(&(*window)->main_element != parent)
 		__element_border(
 			window,
+			parent->parent,
 			parent->parent->position.x + parent->position.x,
 			parent->parent->position.y + parent->position.y,
 			parent->size.ws_row,
