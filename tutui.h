@@ -106,6 +106,7 @@ void tu_add(void *parent, void *child){
 		parent_element->children = malloc(sizeof(*child_element) * ++(parent_element->child_count));
 	}
 	parent_element->children[parent_element->child_count - 1] = child_element;
+	child_element->parent = parent_element;
 }
 
 tu_window* tu_create_window(char *title){
@@ -177,13 +178,16 @@ static void __element_border(tu_window **window, int pos_x, int pos_y, int row, 
 	}
 }
 
+void update_position(tu_element *node, tu_position pos){
+}
+
 void travel_child_tree(tu_window **window, tu_element *parent){
 	for(int i = 0; i < parent->child_count; i++){
 		if(parent->children[i]->child_count == 0)
 			__element_border(
 				window,
-				parent->children[i]->position.x,
-				parent->children[i]->position.y,
+				parent->children[i]->parent->position.x + parent->children[i]->position.x,
+				parent->children[i]->parent->position.y + parent->children[i]->position.y,
 				parent->children[i]->size.ws_row,
 				parent->children[i]->size.ws_col
 			);
@@ -193,8 +197,8 @@ void travel_child_tree(tu_window **window, tu_element *parent){
 	if(&(*window)->main_element != parent)
 		__element_border(
 			window,
-			parent->position.x,
-			parent->position.y,
+			parent->parent->position.x + parent->position.x,
+			parent->parent->position.y + parent->position.y,
 			parent->size.ws_row,
 			parent->size.ws_col
 		);
