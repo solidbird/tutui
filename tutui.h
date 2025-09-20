@@ -22,6 +22,8 @@
 #define BG_COLOR(R, G, B) "\x1b[48;2;" #R ";" #G ";" #B "m"
 #define END_COLOR "\x1b[0m"
 
+#define tu_layout(node, ...) \
+	tu_layout_(node, (tu_layout_params) { __VA_ARGS__ })
 
 typedef enum tu_border_index {
 	TU_BORDER_TOP_LEFT_CORNER,
@@ -45,10 +47,25 @@ typedef enum tu_element_type {
 	// ...
 } tu_element_type;
 
+typedef enum  {
+	TU_LAYOUT_FLOW,
+	TU_LAYOUT_BOX,
+	TU_LAYOUT_GRID,
+} tu_layout_type;
+
+
 typedef struct tu_position {
 	int x;
 	int y;
 } tu_position;
+
+typedef struct {
+	tu_layout_type type;
+
+	int row;
+	int col;
+
+} tu_layout_params;
 
 typedef struct tu_element {
 	void *specifics;
@@ -56,6 +73,7 @@ typedef struct tu_element {
 	tu_element_type type;
 	tu_position position;
 	struct winsize size; //ws_row, ws_col
+	tu_layout_params layout;
 
 	size_t child_count;
 	struct tu_element** children;
@@ -108,6 +126,12 @@ void tu_add(void *parent, void *child){
 	}
 	parent_element->children[parent_element->child_count - 1] = child_element;
 	child_element->parent = parent_element;
+}
+
+// Try to keep default values for tu_layout_params 0 so we can pretend to overwrite default values here
+void tu_layout_(void *node, tu_layout_params layout_params){
+	tu_element *element = &((Base*)node)->element;
+	element->layout = layout_params;
 }
 
 tu_window* tu_create_window(char *title){
