@@ -48,8 +48,10 @@ typedef enum tu_element_type {
 } tu_element_type;
 
 typedef enum  {
+	TU_LAYOUT_FIXED,
 	TU_LAYOUT_FLOW,
-	TU_LAYOUT_BOX,
+	TU_LAYOUT_VBOX,
+	TU_LAYOUT_HBOX,
 	TU_LAYOUT_GRID,
 } tu_layout_type;
 
@@ -98,6 +100,8 @@ typedef struct tu_textlabel {
 } tu_textlabel;
 
 void tu_add(void *parent, void *child);
+void apply_layout_on_children(tu_element *parent);
+void reshape_based_on_layout(tu_element *parent);
 tu_window* tu_create_window(char *title);
 tu_textlabel* tu_create_textlabel(char *text, int x, int y, int width, int height);
 
@@ -231,14 +235,149 @@ static void __element_border(tu_window **window, tu_element *parent, int pos_x, 
 	}
 }
 
+/*
+- FLOW:
+(a bit more complex)
+	A B C D
+	E F G H
+
+	A - (0,0)
+	B - (A.width, 0)
+	C - (B.width, 0)
+	D - (C.width, 0)
+	E - (0, A.height)
+	F - (A.width, B.height)
+	G - (B.width, C.height)
+	H - (C.width, D.height)
+	
+- VBOX:
+	A
+	B
+	C
+	D
+	E
+	F
+	G
+	H
+
+	(container.width, container.height / container.child_count)
+
+- HBOX:
+	(container.width / container.child_count, container.height)
+
+- GRID:
+	4x2
+
+	A B C D
+	E F G H
+
+	A - (0,0)
+	B - (1 * container.width/4, 0)
+	C - (2 * ", 0)
+	D - (3 * ", 0)
+	E - (0, container. 1 * height/2)
+	F - (1 * ", container. 1 * height/2)
+	G - (2 * ", container. 1 * height/2)
+	H - (3 * ", container. 1 * height/2)
+
+*/
+
+void tu_init(tu_window **win){
+	reshape_based_on_layout(&(*win)->main_element);
+}
+
+void apply_layout_on_children(tu_element *parent){
+
+	for(int i = 0; i < parent->child_count; i++){
+		parent->children[i]->position.x += parent->position.x;
+		parent->children[i]->position.y += parent->position.y;
+	}
+
+	switch(parent->layout.type){
+		case TU_LAYOUT_FIXED:
+		break;
+		case TU_LAYOUT_FLOW:
+		break;
+		case TU_LAYOUT_VBOX:
+			for(int i = 0; i < parent->child_count; i++){
+				parent->children[i]->position =
+					(tu_position){
+						parent->position.x + 1,
+						(parent->children[i]->position.y) + i * (parent->size.ws_row / parent->child_count)
+					};
+				parent->children[i]->size =
+					(struct winsize){
+						.ws_row = parent->size.ws_row / parent->child_count - 2,
+						.ws_col = parent->size.ws_col - 2
+					};
+			}
+		break;
+		case TU_LAYOUT_HBOX:
+			for(int i = 0; i < parent->child_count; i++){
+				parent->children[i]->position =
+					(tu_position){
+						parent->children[i]->position.x + i * (parent->size.ws_col / parent->child_count),
+						parent->position.y + 1
+					};
+				parent->children[i]->size =
+					(struct winsize){
+						.ws_row = parent->size.ws_row - 2,
+						.ws_col = parent->size.ws_col / parent->child_count - 2
+					};
+			}
+		break;
+		case TU_LAYOUT_GRID:
+			for(int y = 0; y < parent->layout.col; y++){
+				for(int x = 0; x < parent->layout.row; x++){
+					int linear_index = y * parent->layout.col + x;
+					if(linear_index >= parent->child_count) return;
+					
+					parent->children[linear_index]->position = 
+						(tu_position){
+							x * (parent->size.ws_col / parent->layout.col),
+							y * (parent->size.ws_row / parent->layout.row)
+						};
+					parent->children[linear_index]->size =
+						(struct winsize){
+							.ws_row = parent->size.ws_row / parent->layout.row,
+							.ws_col = parent->size.ws_col / parent->layout.col
+						};
+				}
+			}
+		break;
+	}
+
+	for(int i = 0; i < parent->child_count; i++){
+		
+	}
+}
+
+void reshape_based_on_layout(tu_element *parent){
+
+	// 0. If child_count of parent is 0 then just return
+	// 1. Reshape on all children of the current parent (based on layout choosen)
+	// 2. Interate through each child and give them as next parent into
+	// this function
+
+	if(parent->child_count == 0) return;
+
+	apply_layout_on_children(parent);
+	
+	for(int i = 0; i < parent->child_count; i++){
+		reshape_based_on_layout(parent->children[i]);
+	}
+}
+
 void travel_child_tree(tu_window **window, tu_element *parent){
 	for(int i = 0; i < parent->child_count; i++){
 		if(parent->children[i]->child_count == 0)
 			__element_border(
 				window,
 				parent,
-				parent->children[i]->parent->position.x + parent->children[i]->position.x,
-				parent->children[i]->parent->position.y + parent->children[i]->position.y,
+				//parent->children[i]->parent->position.x + parent->children[i]->position.x,
+				//parent->children[i]->parent->position.y + parent->children[i]->position.y,
+				parent->children[i]->position.x,
+				parent->children[i]->position.y,
 				parent->children[i]->size.ws_row,
 				parent->children[i]->size.ws_col
 			);
@@ -249,8 +388,10 @@ void travel_child_tree(tu_window **window, tu_element *parent){
 		__element_border(
 			window,
 			parent->parent,
-			parent->parent->position.x + parent->position.x,
-			parent->parent->position.y + parent->position.y,
+			//parent->parent->position.x + parent->position.x,
+			//parent->parent->position.y + parent->position.y,
+			parent->position.x,
+			parent->position.y,
 			parent->size.ws_row,
 			parent->size.ws_col
 		);
