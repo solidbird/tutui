@@ -286,6 +286,11 @@ void tu_init(tu_window **win){
 	reshape_based_on_layout(&(*win)->main_element);
 }
 
+int upper(double num){
+	if(((int) num * 10) % 10 >= 5) return (int) num + 1;
+	return num;
+}
+
 void apply_layout_on_children(tu_element *parent){
 
 	for(int i = 0; i < parent->child_count; i++){
@@ -303,11 +308,11 @@ void apply_layout_on_children(tu_element *parent){
 				parent->children[i]->position =
 					(tu_position){
 						parent->position.x + 1,
-						(parent->children[i]->position.y) + i * (parent->size.ws_row / parent->child_count)
+						parent->position.y + 1 + i * (parent->size.ws_row / parent->child_count)
 					};
 				parent->children[i]->size =
 					(struct winsize){
-						.ws_row = parent->size.ws_row / parent->child_count - 2,
+						.ws_row = upper((parent->size.ws_row / parent->child_count)),
 						.ws_col = parent->size.ws_col - 2
 					};
 			}
@@ -316,13 +321,13 @@ void apply_layout_on_children(tu_element *parent){
 			for(int i = 0; i < parent->child_count; i++){
 				parent->children[i]->position =
 					(tu_position){
-						parent->children[i]->position.x + i * (parent->size.ws_col / parent->child_count),
+						parent->position.x + 1 + i * (parent->size.ws_col / parent->child_count),
 						parent->position.y + 1
 					};
 				parent->children[i]->size =
 					(struct winsize){
 						.ws_row = parent->size.ws_row - 2,
-						.ws_col = parent->size.ws_col / parent->child_count - 2
+						.ws_col = parent->size.ws_col / parent->child_count
 					};
 			}
 		break;
@@ -334,21 +339,17 @@ void apply_layout_on_children(tu_element *parent){
 					
 					parent->children[linear_index]->position = 
 						(tu_position){
-							x * (parent->size.ws_col / parent->layout.col),
-							y * (parent->size.ws_row / parent->layout.row)
+							x * (parent->size.ws_col / parent->layout.col) + 2,
+							y * (parent->size.ws_row / parent->layout.row) + 2
 						};
 					parent->children[linear_index]->size =
 						(struct winsize){
-							.ws_row = parent->size.ws_row / parent->layout.row,
-							.ws_col = parent->size.ws_col / parent->layout.col
+							.ws_row = (parent->size.ws_row / parent->layout.row) - 1,
+							.ws_col = (parent->size.ws_col / parent->layout.col) - 1
 						};
 				}
 			}
 		break;
-	}
-
-	for(int i = 0; i < parent->child_count; i++){
-		
 	}
 }
 
